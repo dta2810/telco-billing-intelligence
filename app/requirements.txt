@@ -1,0 +1,12 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+databricks-sdk>=0.81.0
+databricks-sql-connector>=3.1.0
+pydantic>=2.0.0
+python-multipart>=0.0.9
+databricks-langchain[memory]>=0.17.0
+langgraph>=1.1.9
+langchain-mcp-adapters>=0.2.1
+psycopg[binary]>=3.0
+nest_asyncio
+uuid_utils

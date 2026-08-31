@@ -29,6 +29,11 @@ PK = {
 # genie
 GENIE_SPACE_TITLE = "AcmeTel Billing Assistant"
 
+# agent (ML/GenAI)
+LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
+AGENT_MODEL_NAME = "acmetel_billing_agent"      # registered under CATALOG.GOLD
+AGENT_ENDPOINT = "acmetel-billing-agent"
+
 # lakebase (agent context/memory layer)
 LAKEBASE_PROJECT = "acmetel"
 LAKEBASE_MEMORY_SCHEMA = "acmetel_memory"

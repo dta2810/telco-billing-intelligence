@@ -85,6 +85,26 @@ except Exception as e:
     check("Lakebase memory", "reachable", str(e)[:40], False, "run 07_lakebase_setup first")
 
 # COMMAND ----------
+# genie room (live NL -> SQL over gold)
+try:
+    import time
+    from databricks.sdk import WorkspaceClient
+    _w = WorkspaceClient()
+    _sp = next((s for s in _w.genie.list_spaces().spaces or [] if s.title == GENIE_SPACE_TITLE), None)
+    if not _sp:
+        check("Genie room", "space exists", "missing", False, GENIE_SPACE_TITLE)
+    else:
+        _conv = _w.genie.start_conversation_and_wait(
+            _sp.space_id, "How much revenue is at risk from customers 60+ days delinquent?")
+        _atts = _conv.attachments or []
+        _sql = next((a.query.query for a in _atts if a.query), None)
+        _txt = next((a.text.content for a in _atts if a.text), None)
+        check("Genie room", "NL->SQL answered", "yes" if (_sql or _txt) else "no", bool(_sql or _txt),
+              (_sql or _txt or "")[:60].replace("\n", " "))
+except Exception as e:
+    check("Genie room", "reachable", str(e)[:40], False, "run 12_genie first")
+
+# COMMAND ----------
 # render HTML report
 passed = sum(1 for *_, ok, _ in checks if ok)
 total = len(checks)

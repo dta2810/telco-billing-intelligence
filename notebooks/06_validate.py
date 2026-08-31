@@ -1,4 +1,8 @@
 # Databricks notebook source
+# MAGIC %pip install --quiet "databricks-sdk>=0.81.0" "psycopg[binary]>=3.0"
+# MAGIC %restart_python
+
+# COMMAND ----------
 # MAGIC %run ./config
 
 # COMMAND ----------
@@ -55,6 +59,30 @@ for e in ENTITIES:
 # metric views (semantic layer)
 n_mv = cnt(f"SELECT count(*) FROM {CATALOG}.information_schema.tables WHERE table_schema='{GOLD}' AND table_type='METRIC_VIEW'")
 check("Semantic layer", "metric views", n_mv, n_mv == 8)
+
+# COMMAND ----------
+# lakebase context/memory layer (query Postgres directly)
+try:
+    import psycopg
+    from databricks.sdk import WorkspaceClient
+    _w = WorkspaceClient()
+    _branch = dbutils.widgets.get("lakebase_branch") if "lakebase_branch" in [x.name for x in dbutils.widgets.getAll()] else "production"
+    _ep = f"projects/{LAKEBASE_PROJECT}/branches/{_branch}/endpoints/primary"
+    _host = _w.postgres.get_endpoint(name=_ep).status.hosts.host
+    _tok = _w.postgres.generate_database_credential(endpoint=_ep).token
+    _user = _w.current_user.me().user_name
+    _c = psycopg.connect(host=_host, dbname="databricks_postgres", user=_user,
+                         password=_tok, sslmode="require")
+    with _c.cursor() as _cur:
+        _cur.execute(f"SELECT count(*) FROM pg_tables WHERE schemaname='{LAKEBASE_MEMORY_SCHEMA}'")
+        n_tbl = _cur.fetchone()[0]
+        _cur.execute("SELECT count(*) FROM pg_extension WHERE extname='vector'")
+        has_vec = _cur.fetchone()[0]
+    _c.close()
+    check("Lakebase memory", f"memory tables (branch={_branch})", n_tbl, n_tbl >= 6, LAKEBASE_MEMORY_SCHEMA)
+    check("Lakebase memory", "pgvector extension", has_vec, has_vec == 1)
+except Exception as e:
+    check("Lakebase memory", "reachable", str(e)[:40], False, "run 07_lakebase_setup first")
 
 # COMMAND ----------
 # render HTML report

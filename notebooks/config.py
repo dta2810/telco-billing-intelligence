@@ -26,5 +26,12 @@ PK = {
 }
 
 
+# lakebase (agent context/memory layer)
+LAKEBASE_PROJECT = "acmetel"
+LAKEBASE_MEMORY_SCHEMA = "acmetel_memory"
+EMBEDDING_ENDPOINT = "databricks-gte-large-en"
+EMBEDDING_DIMS = 1024
+
+
 def t(schema, name):
     return f"{CATALOG}.{schema}.{name}"

@@ -1,0 +1,12 @@
+bundle:
+  name: acmetel-medallion
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      profile: fe-vm-dt-serverless-stable-isqgt5

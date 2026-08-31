@@ -1,0 +1,30 @@
+# Databricks notebook source
+# naming conventions
+
+CATALOG = "dt_serverless_stable_isqgt5_catalog"
+LANDING, BRONZE, SILVER, GOLD = "acmetel_landing", "acmetel_bronze", "acmetel_silver", "acmetel_gold"
+VOLUME = "raw"
+VOL_PATH = f"/Volumes/{CATALOG}/{LANDING}/{VOLUME}"
+
+ENTITIES = [
+    "customer", "rate_plan", "subscription", "contract", "promotion",
+    "subscription_promotion", "invoice", "invoice_line", "payment", "usage_summary",
+]
+
+# primary keys (for silver dedup)
+PK = {
+    "customer": ["customer_id"],
+    "rate_plan": ["plan_id"],
+    "subscription": ["subscription_id"],
+    "contract": ["contract_id"],
+    "promotion": ["promo_id"],
+    "subscription_promotion": ["sub_promo_id"],
+    "invoice": ["invoice_id"],
+    "invoice_line": ["invoice_line_id"],
+    "payment": ["payment_id"],
+    "usage_summary": ["subscription_id", "billing_period"],
+}
+
+
+def t(schema, name):
+    return f"{CATALOG}.{schema}.{name}"

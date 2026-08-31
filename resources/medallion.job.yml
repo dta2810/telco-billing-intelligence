@@ -29,4 +29,4 @@ resources:
         - task_key: validate
           depends_on: [{task_key: metric_views}]
           notebook_task:
-            notebook_path: ../notebooks/06_validate.py
+            notebook_path: ../notebooks/99_validate.py

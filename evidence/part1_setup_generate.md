@@ -107,7 +107,7 @@ Queried live — ARPU by billing period (`MEASURE(arpu)`, `MEASURE(total_revenue
 2026-08   61.93   18578.92
 ```
 
-## Validation notebook (06_validate)
+## Validation notebook (99_validate)
 
 Covers, per run, as an HTML report + text: UC structure (schemas, gold tables, comments),
 landing raw counts, seeded scenarios, **medallion layer parity (bronze = silver = gold)**, and

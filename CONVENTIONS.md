@@ -24,14 +24,23 @@ fe_bar/
   CONVENTIONS.md      # this standard
   README.md           # client-facing entry — leads with the business outcome
   databricks.yml      # DABs bundle: the Lakeflow Job (serverless)
-  notebooks/          # medallion notebooks, run in order by the Job
+  notebooks/          # deployment notebooks, grouped by phase
     config            # naming conventions — single source of truth
-    00_setup_uc       # catalog + schemas + volume + gold table contracts
+    # Phase 1 — medallion (data journey), run in order by the Job
+    00_setup_uc       # schemas + volume + gold table contracts
     01_generate_raw   # synthetic raw data → landing volume
     02_bronze         # Auto Loader: raw → bronze
     03_silver         # typed + quality → silver
     04_gold           # business model → gold
     05_metric_views   # semantic metric views
+    # Phase 2 — intelligence layer
+    10_lakebase_setup # Lakebase context/memory layer (dev/prod branches)
+    11_uc_functions   # agent/Genie deterministic tools (UC SQL functions)
+    12_genie          # Genie Space on gold
+    13_agent          # LangGraph agent (memory + Genie/UC via MCP)
+    14_app            # Databricks App (business surface)
+    # cross-cutting
+    99_validate       # validates every layer (runs last)
   evidence/           # committed run output, readable as text
 ```
 

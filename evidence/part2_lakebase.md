@@ -1,7 +1,7 @@
 # Evidence — Part 2: Lakebase (agent context/memory layer)
 
 Lakebase is the agent's context layer: short-term (conversation) + long-term (subscriber
-facts, pgvector). Provisioned + smoke-tested from a single notebook (`07_lakebase_setup`),
+facts, pgvector). Provisioned + smoke-tested from a single notebook (`10_lakebase_setup`),
 parametrized by branch. Dev/prod = two copy-on-write branches of one project.
 
 ## Project — created (SDK `w.postgres`)
@@ -38,7 +38,7 @@ connects to — same project/branch/schema.
 
 ## Validation coverage
 
-`06_validate` now checks all four layers in one report (HTML + text): UC structure, medallion
+`99_validate` now checks all four layers in one report (HTML + text): UC structure, medallion
 layer parity, metric views, and **Lakebase memory** (connects to the branch via psycopg, counts
 memory tables in `acmetel_memory`, confirms pgvector). Takes a `lakebase_branch` param
 (default `production`). Ran SUCCESS with the Lakebase section active.

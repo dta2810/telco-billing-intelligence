@@ -26,6 +26,9 @@ PK = {
 }
 
 
+# genie
+GENIE_SPACE_TITLE = "AcmeTel Billing Assistant"
+
 # lakebase (agent context/memory layer)
 LAKEBASE_PROJECT = "acmetel"
 LAKEBASE_MEMORY_SCHEMA = "acmetel_memory"

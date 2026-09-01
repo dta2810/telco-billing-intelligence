@@ -172,35 +172,50 @@ CREATE OR REPLACE FUNCTION {G}.simulate_plan_change(
   p_new_plan_id STRING COMMENT 'Plan ID to switch to (PLAN-NNN)'
 )
 RETURNS TABLE (
-  current_plan  STRING,
-  current_fee   DECIMAL(10,2),
-  new_plan      STRING,
-  new_fee       DECIMAL(10,2),
-  monthly_delta DECIMAL(10,2) COMMENT 'Monthly difference (positive = costlier, negative = saves)',
-  annual_delta  DECIMAL(10,2),
-  warning       STRING        COMMENT 'Warnings: ETF, downgrade causing overage, etc.'
+  current_plan     STRING,
+  current_fee      DECIMAL(10,2),
+  current_data_gb  INT,
+  current_voice_min INT,
+  current_sms      INT,
+  new_plan         STRING,
+  new_fee          DECIMAL(10,2),
+  new_data_gb      INT,
+  new_voice_min    INT,
+  new_sms          INT,
+  monthly_delta    DECIMAL(10,2) COMMENT 'Monthly difference (positive = costlier, negative = saves)',
+  annual_delta     DECIMAL(10,2),
+  data_delta_gb    INT           COMMENT 'GB difference (new - current)',
+  voice_delta_min  INT           COMMENT 'Voice minutes difference (new - current; -1 plans excluded)',
+  warning          STRING        COMMENT 'Warnings: ETF, downgrade causing overage, etc.'
 )
-COMMENT 'Simulates the economic impact of a plan change. Compares current vs new monthly fee, computes annual impact, and warns about the Early Termination Fee if a contract is active and about overage risk if the new plan has less quota.'
+COMMENT 'Simulates the economic impact of a plan change. Compares current vs new monthly fee, data/voice/SMS allowances and deltas, computes annual impact, and warns about the Early Termination Fee if a contract is active and about overage risk if the new plan has less quota.'
 RETURN
   WITH cur AS (
     SELECT s.customer_id, rp.plan_name AS current_plan, rp.monthly_fee AS current_fee,
-           rp.data_quota_gb AS current_quota
+           rp.data_quota_gb AS current_quota, rp.voice_minutes AS current_voice, rp.sms_quota AS current_sms
     FROM {G}.subscription s
     JOIN {G}.rate_plan rp ON s.plan_id = rp.plan_id
     WHERE s.customer_id = p_customer_id
     ORDER BY s.activation_date DESC LIMIT 1
   ),
   new_p AS (
-    SELECT plan_name AS new_plan, monthly_fee AS new_fee, data_quota_gb AS new_quota
+    SELECT plan_name AS new_plan, monthly_fee AS new_fee, data_quota_gb AS new_quota,
+           voice_minutes AS new_voice, sms_quota AS new_sms
     FROM {G}.rate_plan WHERE plan_id = p_new_plan_id
   ),
   ct AS (
     SELECT MAX(early_termination_fee) AS etf, MAX(end_date) AS contract_end
     FROM {G}.contract WHERE customer_id = p_customer_id AND status = 'active'
   )
-  SELECT current_plan, current_fee, new_plan, new_fee,
+  SELECT current_plan, current_fee, cur.current_quota AS current_data_gb,
+         cur.current_voice AS current_voice_min, cur.current_sms AS current_sms,
+         new_plan, new_fee, new_p.new_quota AS new_data_gb,
+         new_p.new_voice AS new_voice_min, new_p.new_sms AS new_sms,
          (new_fee - current_fee)      AS monthly_delta,
          (new_fee - current_fee) * 12 AS annual_delta,
+         (new_p.new_quota - cur.current_quota) AS data_delta_gb,
+         CASE WHEN new_p.new_voice = -1 OR cur.current_voice = -1 THEN 0
+              ELSE new_p.new_voice - cur.current_voice END AS voice_delta_min,
          concat_ws(' ',
            CASE WHEN ct.contract_end > current_date() THEN
                 concat('Active contract until ', cast(ct.contract_end AS STRING),

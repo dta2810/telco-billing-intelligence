@@ -34,7 +34,7 @@ function fmt$(v: any): string {
 }
 
 function fmtData(gb: number): string {
-  return `${gb} GB`;
+  return gb === null || gb === undefined ? '—' : `${gb} GB`;
 }
 
 export function PlanSimulator({ customerId }: { customerId: string }) {
@@ -48,6 +48,13 @@ export function PlanSimulator({ customerId }: { customerId: string }) {
     if (v === -1 || v === null || v === undefined) return t('sim.unlimited');
     return `${v.toLocaleString('en-US')} ${t('sim.min')}`;
   };
+
+  const fmtSms = (v: number): string => {
+    if (v === -1) return t('sim.unlimited');
+    if (v === null || v === undefined) return '—';
+    return v.toLocaleString('en-US');
+  };
+  const num = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : 0);
 
   useEffect(() => {
     fetch('/api/plans')
@@ -91,7 +98,7 @@ export function PlanSimulator({ customerId }: { customerId: string }) {
         </div>
         <div className="flex justify-between">
           <dt className="text-db-muted">{t('sim.sms')}</dt>
-          <dd>{sms === -1 ? t('sim.unlimited') : sms.toLocaleString('en-US')}</dd>
+          <dd>{fmtSms(sms)}</dd>
         </div>
       </dl>
     </div>

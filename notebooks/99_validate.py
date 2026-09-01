@@ -105,6 +105,31 @@ except Exception as e:
     check("Genie room", "reachable", str(e)[:40], False, "run 12_genie first")
 
 # COMMAND ----------
+# databricks app (status + live API endpoints)
+try:
+    import urllib.request
+    from databricks.sdk import WorkspaceClient
+    _w = WorkspaceClient()
+    _app = _w.apps.get(name=APP_NAME)
+    _state = (_app.app_status.state if _app.app_status else None)
+    check("Databricks app", "app running", str(_state), str(_state) == "RUNNING", APP_NAME)
+    if _app.url:
+        _hdr = _w.config.authenticate()
+        def _get(path):
+            req = urllib.request.Request(_app.url.rstrip("/") + path, headers=_hdr)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read().decode())
+        _h = _get("/api/health")
+        check("Databricks app", "/api/health", "ok" if _h.get("ok") else "no", bool(_h.get("ok")),
+              f"{_h.get('catalog')}.{_h.get('schema')}")
+        _s = _get("/api/smoke")
+        _tc = _s.get("table_counts", {})
+        check("Databricks app", "/api/smoke UC reachable", _tc.get("customer"), _tc.get("customer") == 300,
+              f"customer={_tc.get('customer')}, arpu ok={bool(_s.get('metric_view_arpu_last_period'))}")
+except Exception as e:
+    check("Databricks app", "reachable", str(e)[:40], False, "run 14_app first")
+
+# COMMAND ----------
 # render HTML report
 passed = sum(1 for *_, ok, _ in checks if ok)
 total = len(checks)

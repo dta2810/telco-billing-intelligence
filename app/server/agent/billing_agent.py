@@ -3,6 +3,7 @@
 Short-term (conversation) + long-term (subscriber) memory on Lakebase, Genie space and
 UC functions as MCP tools, Claude as the LLM. Exposes one async entrypoint, answer().
 """
+import json
 import os
 from datetime import date
 from typing import Annotated, Any, Optional, Sequence, TypedDict
@@ -12,6 +13,7 @@ from databricks_langchain import (ChatDatabricks, DatabricksMCPServer,
     DatabricksMultiServerMCPClient, AsyncCheckpointSaver, AsyncDatabricksStore)
 from langchain.agents import create_agent
 from langchain_core.messages import AnyMessage
+from langchain_core.tools import StructuredTool
 from langgraph.graph.message import add_messages
 
 from server.agent.tools import get_customer_key
@@ -67,6 +69,21 @@ def _host():
     return WorkspaceClient().config.host
 
 
+def _stringify(tool):
+    """Wrap an MCP tool so its result is a plain string (Claude rejects structured
+    tool_result content that carries an `id` field)."""
+    orig = tool.coroutine
+    if orig is None:
+        return tool
+    async def _wrapped(**kwargs):
+        res = await orig(**kwargs)
+        if isinstance(res, str):
+            return res
+        return json.dumps(res, ensure_ascii=False, default=str)
+    return StructuredTool(name=tool.name, description=tool.description,
+                          args_schema=tool.args_schema, coroutine=_wrapped)
+
+
 async def answer(message: str, thread_id: str, customer_id: Optional[str] = None,
                  customer_context: Optional[str] = None) -> str:
     w = WorkspaceClient()
@@ -76,7 +93,7 @@ async def answer(message: str, thread_id: str, customer_id: Optional[str] = None
     ])
     tools = [get_customer_key]
     try:
-        tools.extend(await mcp.get_tools())
+        tools.extend(_stringify(t) for t in await mcp.get_tools())
     except Exception:
         pass
     tools.extend(memory_tools())

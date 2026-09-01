@@ -397,9 +397,9 @@ def genie_chat(body: GenieMessageRequest) -> dict[str, Any]:
             "genie_query": extracted["genie_query"],
             "query_result": extracted["query_result"],
         }
-    except Exception as e:
+    except Exception:
         logger.exception("Genie chat error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Genie chat failed. Please try again.")
 
 
 # ----------------------------------------------------------------------------
@@ -816,9 +816,9 @@ def agent_chat(body: AgentChatRequest) -> dict[str, Any]:
             "genie_data": query_result,
             "genie_raw_reply": genie_response_text,
         }
-    except Exception as e:
+    except Exception:
         logger.exception("Agent chat error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Agent chat failed. Please try again.")
 
 
 # ----------------------------------------------------------------------------
@@ -881,8 +881,8 @@ async def memory_chat(body: MemoryChatRequest) -> dict[str, Any]:
     try:
         text = await agent_answer(message=body.message, thread_id=thread_id,
                                   customer_id=body.customer_id, customer_context=customer_context)
-    except Exception as e:
+    except Exception:
         logger.exception("Embedded agent call failed")
-        raise HTTPException(status_code=502, detail=f"Agent error: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=502, detail="Assistant is unavailable. Please try again.")
 
     return {"answer": text or i18n.tr(body.lang or "es", "genie.noAnswer"), "thread_id": thread_id}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Sparkles, RotateCcw } from 'lucide-react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { useI18n } from '../i18n';
 
 marked.setOptions({ gfm: true, breaks: true });
@@ -28,8 +29,8 @@ interface GenieChatProps {
 }
 
 function renderMd(s: string): string {
-  // marked.parse returns string in sync mode (default)
-  return marked.parse(s) as string;
+  // marked.parse returns string in sync mode (default); sanitize LLM/Genie output before render
+  return DOMPurify.sanitize(marked.parse(s) as string);
 }
 
 export function GenieChat({ context, suggestedQuestions, customerId, height = 540, useMemory = false }: GenieChatProps) {

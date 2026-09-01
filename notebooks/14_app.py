@@ -27,17 +27,20 @@ sp_id = app.service_principal_client_id
 print("app SP client_id:", sp_id)
 
 # COMMAND ----------
-# grant the app SP the access the embedded agent needs
-# UC: read gold + execute UC functions ; Genie: CAN_RUN ; Lakebase role handled separately
+# grant the app SP least-privilege access: catalog/schema USE + SELECT per table + EXECUTE per function
+# (table/function-scoped, not schema-wide) ; Genie CAN_RUN ; Lakebase role handled separately
 G = f"{CATALOG}.{GOLD}"
-for stmt in [
-    f"GRANT USE CATALOG ON CATALOG {CATALOG} TO `{sp_id}`",
-    f"GRANT USE SCHEMA ON SCHEMA {G} TO `{sp_id}`",
-    f"GRANT SELECT ON SCHEMA {G} TO `{sp_id}`",
-    f"GRANT EXECUTE ON SCHEMA {G} TO `{sp_id}`",
-]:
+UC_FNS = ["check_discount_status", "get_payment_status", "get_next_best_offer", "simulate_plan_change"]
+MVIEWS = ["mv_arpu_monthly", "mv_collection_rate", "mv_dunning_distribution", "mv_discount_expiring_30d",
+          "mv_overage_frequency", "mv_contract_expiring_60d", "mv_plan_utilization", "mv_revenue_at_risk"]
+grants = [f"GRANT USE CATALOG ON CATALOG {CATALOG} TO `{sp_id}`",
+          f"GRANT USE SCHEMA ON SCHEMA {G} TO `{sp_id}`"]
+grants += [f"GRANT SELECT ON TABLE {G}.{t} TO `{sp_id}`" for t in ENTITIES]
+grants += [f"GRANT SELECT ON VIEW {G}.{v} TO `{sp_id}`" for v in MVIEWS]
+grants += [f"GRANT EXECUTE ON FUNCTION {G}.{f} TO `{sp_id}`" for f in UC_FNS]
+for stmt in grants:
     spark.sql(stmt)
-print("UC grants applied to app SP")
+print(f"UC grants applied to app SP ({len(grants)} scoped grants)")
 
 # Genie space CAN_RUN for the app SP
 GENIE_SPACE_ID = next(s.space_id for s in w.genie.list_spaces().spaces if s.title == GENIE_SPACE_TITLE)

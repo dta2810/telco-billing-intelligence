@@ -6,13 +6,18 @@ interface Props {
   loading: boolean;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderMarkdown(md: string): string {
+  // escape HTML first (LLM output is untrusted), then apply safe bold/italic markup
   return md
     .split('\n')
     .map((line) => {
-      const bold = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      const italic = bold.replace(/_(.+?)_/g, '<em class="text-db-muted">$1</em>');
-      return italic;
+      const safe = escapeHtml(line);
+      const bold = safe.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      return bold.replace(/_(.+?)_/g, '<em class="text-db-muted">$1</em>');
     })
     .join('<br/>');
 }

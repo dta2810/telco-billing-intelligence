@@ -85,7 +85,8 @@ fe_bar/
   notebooks/           # every stage deploys from a notebook
     config             # naming — single source of truth
     00_setup_uc … 05_metric_views   # Phase 1: medallion
-    10_lakebase_setup, 11_uc_functions, 12_genie, 13_agent   # Phase 2: intelligence
+    10_lakebase_setup, 11_uc_functions, 12_genie   # Phase 2: intelligence
+    13_agent           # alternative: agent on a serving endpoint (the app embeds it instead)
     14_app             # deploy the app (SDK w.apps)
     99_validate        # validates all six stages (HTML + text report)
   app/                 # FastAPI + React app with the embedded memory agent

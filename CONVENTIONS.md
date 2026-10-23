@@ -37,7 +37,7 @@ fe_bar/
     10_lakebase_setup # Lakebase context/memory layer (dev/prod branches)
     11_uc_functions   # agent/Genie deterministic tools (UC SQL functions)
     12_genie          # Genie Space on gold
-    13_agent          # LangGraph agent (memory + Genie/UC via MCP)
+    13_agent          # alternative: LangGraph agent on a serving endpoint (the app embeds the agent)
     14_app            # Databricks App (business surface)
     # cross-cutting
     99_validate       # validates every layer (runs last)

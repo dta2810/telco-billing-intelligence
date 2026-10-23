@@ -12,8 +12,8 @@ w = WorkspaceClient()
 
 # resolve runtime values to bake into the model code
 GENIE_SPACE_ID = next(s.space_id for s in w.genie.list_spaces().spaces if s.title == GENIE_SPACE_TITLE)
-WAREHOUSE_ID = sorted(w.warehouses.list(),
-                      key=lambda x: (x.state.value != "RUNNING", not x.enable_serverless_compute))[0].id
+WAREHOUSE_ID = WAREHOUSE_ID or sorted((x for x in w.warehouses.list() if x.warehouse_type and x.warehouse_type.value == "PRO"),
+                      key=lambda x: (not x.enable_serverless_compute, x.state.value != "RUNNING"))[0].id
 LAKEBASE_BRANCH = "production"
 print("genie:", GENIE_SPACE_ID, "| warehouse:", WAREHOUSE_ID)
 

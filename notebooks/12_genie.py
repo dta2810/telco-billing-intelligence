@@ -14,8 +14,8 @@ G = f"{CATALOG}.{GOLD}"
 def hid():
     return uuid.uuid4().hex
 
-# discover a serverless PRO SQL warehouse (Genie rejects classic and realtime)
-WAREHOUSE_ID = sorted((x for x in w.warehouses.list() if x.warehouse_type and x.warehouse_type.value == "PRO"),
+# pinned warehouse from config, else discover a serverless PRO one (Genie rejects classic and realtime)
+WAREHOUSE_ID = WAREHOUSE_ID or sorted((x for x in w.warehouses.list() if x.warehouse_type and x.warehouse_type.value == "PRO"),
                       key=lambda x: (not x.enable_serverless_compute, x.state.value != "RUNNING"))[0].id
 
 # COMMAND ----------

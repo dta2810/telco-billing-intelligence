@@ -27,6 +27,9 @@ PK = {
 
 
 # genie
+# sql warehouse (serverless PRO; empty = auto-discover)
+WAREHOUSE_ID = "2f3030c18eff5d1a"
+
 GENIE_SPACE_TITLE = "AcmeTel Billing Assistant"
 METRIC_VIEWS = ["mv_arpu_monthly", "mv_collection_rate", "mv_dunning_distribution", "mv_discount_expiring_30d",
                 "mv_overage_frequency", "mv_contract_expiring_60d", "mv_plan_utilization", "mv_revenue_at_risk"]

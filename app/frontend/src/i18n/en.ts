@@ -26,6 +26,7 @@ export const en: Record<string, string> = {
   'common.loadingKpis': 'Loading KPIs…',
   'common.error': 'Error',
   'common.noMatches': 'No matches.',
+  'common.loadFailed': 'Could not load the list. Try again.',
 
   // Executive page
   'exec.title': 'Executive View',

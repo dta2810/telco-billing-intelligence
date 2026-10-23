@@ -13,6 +13,7 @@ export function CohortExplorer() {
   const [segment, setSegment] = useState<string>('todos');
   const [list, setList] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   const presetFallback = useMemo(
     () => [0, 1, 2, 3, 4, 5].map((i) => t('cohort.fallback.' + i)),
@@ -22,17 +23,30 @@ export function CohortExplorer() {
   useEffect(() => {
     if (!activeFilter && segment === 'todos') {
       setList(null);
+      setError(false);
       return;
     }
     const params = new URLSearchParams();
     if (activeFilter) params.set(activeFilter, 'true');
     if (segment !== 'todos') params.set('segment', segment);
     params.set('limit', '50');
+    // cancel stale requests; surface backend errors instead of crashing
+    const ctrl = new AbortController();
     setLoading(true);
-    fetch(`/api/customer/list?${params.toString()}`)
-      .then((r) => r.json())
-      .then(setList)
-      .finally(() => setLoading(false));
+    setError(false);
+    fetch(`/api/customer/list?${params.toString()}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((d: ListResponse) => setList({ count: d.count ?? 0, rows: d.rows ?? [] }))
+      .catch((e) => {
+        if (ctrl.signal.aborted) return;
+        console.error('customer/list failed', e);
+        setList(null);
+        setError(true);
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+    return () => ctrl.abort();
   }, [activeFilter, segment]);
 
   const presetQuestions = useMemo(() => {
@@ -113,7 +127,10 @@ export function CohortExplorer() {
             {loading && (
               <div className="text-center py-10 text-db-muted text-sm">{t('common.loading')}</div>
             )}
-            {list?.rows.map((c: CustomerRow) => (
+            {error && !loading && (
+              <div className="text-center py-10 text-db-muted text-sm">{t('common.loadFailed')}</div>
+            )}
+            {list?.rows?.map((c: CustomerRow) => (
               <a
                 key={c.customer_id}
                 href={`/customer?selected=${c.customer_id}`}
@@ -131,7 +148,7 @@ export function CohortExplorer() {
                 <div className="text-[11px] text-db-muted capitalize">{c.segment}</div>
               </a>
             ))}
-            {list?.rows.length === 0 && !loading && (
+            {list?.rows?.length === 0 && !loading && (
               <div className="text-center py-10 text-db-muted text-sm">{t('common.noMatches')}</div>
             )}
           </div>

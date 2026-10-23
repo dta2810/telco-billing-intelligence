@@ -50,6 +50,7 @@ export function CustomerListPanel({
   const t = useT();
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [debounced, setDebounced] = useState(searchValue);
 
   useEffect(() => {
@@ -60,17 +61,30 @@ export function CustomerListPanel({
   useEffect(() => {
     if (!renderList) {
       setData(null);
+      setError(false);
       return;
     }
     const params = new URLSearchParams();
     filters.forEach((f) => params.set(f, 'true'));
     if (segment !== 'todos') params.set('segment', segment);
     if (debounced) params.set('search', debounced);
+    // cancel stale requests; surface backend errors instead of crashing
+    const ctrl = new AbortController();
     setLoading(true);
-    fetch(`/api/customer/list?${params.toString()}`)
-      .then((r) => r.json())
-      .then(setData)
-      .finally(() => setLoading(false));
+    setError(false);
+    fetch(`/api/customer/list?${params.toString()}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((d: ListResponse) => setData({ count: d.count ?? 0, rows: d.rows ?? [] }))
+      .catch((e) => {
+        if (ctrl.signal.aborted) return;
+        console.error('customer/list failed', e);
+        setData(null);
+        setError(true);
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+    return () => ctrl.abort();
   }, [filters, segment, debounced, renderList]);
 
   const alertLabel = (count: number) =>
@@ -141,7 +155,10 @@ export function CustomerListPanel({
             <p className="text-sm text-db-muted leading-relaxed">{t('list.emptyHint')}</p>
           </div>
         )}
-        {renderList && data?.rows.map((c) => {
+        {renderList && error && !loading && (
+          <div className="text-center py-10 text-db-muted text-sm">{t('common.loadFailed')}</div>
+        )}
+        {renderList && data?.rows?.map((c) => {
           const active = c.customer_id === selectedId;
           return (
             <button
@@ -174,7 +191,7 @@ export function CustomerListPanel({
             </button>
           );
         })}
-        {renderList && data?.rows.length === 0 && !loading && (
+        {renderList && data?.rows?.length === 0 && !loading && (
           <div className="text-center py-10 text-db-muted text-sm">{t('list.noMatch')}</div>
         )}
       </div>

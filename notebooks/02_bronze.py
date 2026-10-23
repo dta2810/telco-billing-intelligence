@@ -10,6 +10,10 @@ for e in ENTITIES:
     src   = f"{VOL_PATH}/{e}"
     ckpt  = f"{VOL_PATH}/_ckpt/{e}"
     schm  = f"{VOL_PATH}/_schema/{e}"
+    # raw is a full snapshot per run: reset bronze table + Auto Loader state
+    spark.sql(f"DROP TABLE IF EXISTS {t(BRONZE, e)}")
+    dbutils.fs.rm(ckpt, True)
+    dbutils.fs.rm(schm, True)
     stream = (spark.readStream.format("cloudFiles")
               .option("cloudFiles.format", "csv")
               .option("cloudFiles.schemaLocation", schm)

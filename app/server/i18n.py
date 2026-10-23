@@ -29,7 +29,7 @@ _S: dict[str, dict[str, str]] = {
         "exec.disc.label": "Descuentos por vencer (30d)",
         "exec.disc.subtitle": "{n} líneas afectadas",
         "exec.contracts.label": "Contratos por vencer (60d)",
-        "exec.contracts.subtitle": "ETF expuesto: ${etf}",
+        "exec.contracts.subtitle": "{n} clientes · ${arr}/año recurrente en renovación",
         "exec.overage.label": "% líneas con overage",
         "exec.overage.subtitle": "{n} líneas excedieron quota",
         # Customer KPI tiles
@@ -37,7 +37,7 @@ _S: dict[str, dict[str, str]] = {
         "cust.total.subtitle": "del portafolio total",
         "cust.mora60.label": "Mora crítica (60+ días)",
         "cust.mora60.subtitle": "requieren acción inmediata",
-        "cust.expdisc.label": "Descuento vencido (último mes)",
+        "cust.expdisc.label": "Descuento vencido (últimos 60 días)",
         "cust.expdisc.subtitle": "factura subió este mes",
         "cust.contract.label": "Contrato por vencer (60d)",
         "cust.contract.subtitle": "ventana de retención",
@@ -61,7 +61,7 @@ _S: dict[str, dict[str, str]] = {
         "exec.disc.label": "Discounts expiring (30d)",
         "exec.disc.subtitle": "{n} lines affected",
         "exec.contracts.label": "Contracts expiring (60d)",
-        "exec.contracts.subtitle": "ETF exposed: ${etf}",
+        "exec.contracts.subtitle": "{n} customers · ${arr}/yr recurring up for renewal",
         "exec.overage.label": "% lines with overage",
         "exec.overage.subtitle": "{n} lines exceeded quota",
         # Customer KPI tiles
@@ -69,7 +69,7 @@ _S: dict[str, dict[str, str]] = {
         "cust.total.subtitle": "of the total portfolio",
         "cust.mora60.label": "Critical dunning (60+ days)",
         "cust.mora60.subtitle": "require immediate action",
-        "cust.expdisc.label": "Expired discount (last month)",
+        "cust.expdisc.label": "Expired discount (last 60 days)",
         "cust.expdisc.subtitle": "bill went up this month",
         "cust.contract.label": "Contract expiring (60d)",
         "cust.contract.subtitle": "retention window",
@@ -108,7 +108,16 @@ def build_insights_prompt(lang: Any, period: str, summary_text: str) -> str:
             "**Opportunity spotted:** _one actionable sentence with a number_.\n\n"
             "**Recommended action:** _a single specific action for the CX or collections "
             "team, with a time horizon (this week / this month)_.\n\n"
-            "Use USD amounts with two decimals and thousands separators."
+            "Use USD amounts with two decimals and thousands separators.\n\n"
+            "Interpretation rules (follow the `definitions` field):\n"
+            "- If ARPU moves, explain the driver from `revenue_by_charge_type` (e.g. one-time device sales vs "
+            "recurring); do not call it a business decline if recurring revenue is flat.\n"
+            "- Collection rate and revenue at risk have different bases; never present one as the cause of the other.\n"
+            "- Expiring contracts are a renewal/churn risk measured in annual recurring revenue, never an "
+            "early-termination-fee exposure. Count them as customers.\n"
+            "- The opportunity must be retention or upsell (prefer `expired_discount_bill_shock`, or overage "
+            "by plan), never debt collection; collections belong in the risk.\n"
+            "- Use only figures present in the data; do not compute new totals."
         )
     return (
         "Eres analista de billing de un operador telco LATAM. Estos son los KPIs y "
@@ -123,7 +132,16 @@ def build_insights_prompt(lang: Any, period: str, summary_text: str) -> str:
         "con horizonte de tiempo (esta semana / este mes)_.\n\n"
         "Usa montos en USD con dos decimales y comas para miles. No uses tecnicismos como "
         "'dunning', 'MSISDN' u 'overage' — reemplázalos por 'mora', 'línea' o "
-        "'consumo excedente'."
+        "'consumo excedente'.\n\n"
+        "Reglas de interpretación (sigue el campo `definitions`):\n"
+        "- Si el ARPU se mueve, explica la causa con `revenue_by_charge_type` (p. ej. ventas puntuales de "
+        "equipos vs ingreso recurrente); no lo llames caída del negocio si el recurrente está estable.\n"
+        "- La tasa de cobranza y el revenue en riesgo tienen bases distintas; nunca presentes una como causa de la otra.\n"
+        "- Los contratos por vencer son riesgo de renovación medido en ingreso recurrente anual, nunca "
+        "exposición por penalidad. Cuéntalos como clientes.\n"
+        "- La oportunidad debe ser de retención o upsell (prioriza `expired_discount_bill_shock`, o el "
+        "consumo excedente por plan), nunca cobranza; la cobranza va en el riesgo.\n"
+        "- Usa solo cifras presentes en los datos; no calcules totales nuevos."
     )
 
 

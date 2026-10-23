@@ -145,7 +145,7 @@ def _last_period() -> str:
 # ----------------------------------------------------------------------------
 
 def _exec_kpi_queries(period: str) -> list[str]:
-    """The 7 metric-view queries that power the executive KPI tiles.
+    """The 8 queries that power the executive KPI tiles.
     Order is contract — `_build_kpi_tiles` unpacks results positionally."""
     return [
         # arpu (current period)
@@ -184,12 +184,20 @@ def _exec_kpi_queries(period: str) -> list[str]:
                    MEASURE(subs_with_overage) AS subs
             FROM {CATALOG}.{SCHEMA}.mv_overage_frequency
             WHERE billing_period = '{period}'""",
+        # renewal: recurring revenue tied to contracts ending in 60d
+        f"""SELECT COUNT(DISTINCT ct.customer_id) AS customers,
+                   SUM(rp.monthly_fee) * 12 AS annual_recurring
+            FROM {CATALOG}.{SCHEMA}.contract ct
+            JOIN {CATALOG}.{SCHEMA}.subscription s ON ct.subscription_id = s.subscription_id
+            JOIN {CATALOG}.{SCHEMA}.rate_plan rp ON s.plan_id = rp.plan_id
+            WHERE ct.status = 'active'
+              AND ct.end_date BETWEEN current_date() AND date_add(current_date(), 60)""",
     ]
 
 
 def _build_kpi_tiles(kpi_results: list[list[dict]], lang: Any = "es") -> list[dict]:
-    """Turn the 7 raw kpi result sets into the tile payload."""
-    arpu, arpu_prev, coll, rar, disc, contracts, overage = kpi_results
+    """Turn the 8 raw kpi result sets into the tile payload."""
+    arpu, arpu_prev, coll, rar, disc, contracts, overage, renewal = kpi_results
 
     a = arpu[0] if arpu else {}
     a_prev = arpu_prev[0] if arpu_prev else {}
@@ -198,6 +206,7 @@ def _build_kpi_tiles(kpi_results: list[list[dict]], lang: Any = "es") -> list[di
     d = disc[0] if disc else {}
     ct = contracts[0] if contracts else {}
     o = overage[0] if overage else {}
+    rn = renewal[0] if renewal else {}
 
     arpu_now = _safe_float(a.get("arpu"))
     arpu_old = _safe_float(a_prev.get("arpu"))
@@ -244,7 +253,8 @@ def _build_kpi_tiles(kpi_results: list[list[dict]], lang: Any = "es") -> list[di
             "value": _safe_int(ct.get("n")),
             "format": "count",
             "subtitle": i18n.tr(lang, "exec.contracts.subtitle",
-                                etf=f"{_safe_float(ct.get('etf')):,.0f}"),
+                                n=_safe_int(rn.get("customers")),
+                                arr=f"{_safe_float(rn.get('annual_recurring')):,.0f}"),
             "tone": "warn",
         },
         {
@@ -276,6 +286,35 @@ def _exec_insights_queries(period: str) -> list[str]:
             FROM {CATALOG}.{SCHEMA}.mv_overage_frequency
             WHERE billing_period = '{period}'
             GROUP BY plan_name ORDER BY rate DESC""",
+        # revenue by charge type, current vs previous period (explains ARPU moves)
+        f"""SELECT i.billing_period, il.charge_type, ROUND(SUM(il.amount), 2) AS amount
+            FROM {CATALOG}.{SCHEMA}.invoice_line il
+            JOIN {CATALOG}.{SCHEMA}.invoice i ON il.invoice_id = i.invoice_id
+            WHERE i.billing_period IN ('{period}', (
+              SELECT MAX(billing_period) FROM {CATALOG}.{SCHEMA}.invoice WHERE billing_period < '{period}'))
+            GROUP BY i.billing_period, il.charge_type ORDER BY il.charge_type, i.billing_period""",
+        # bill shock: customers whose discount expired in the last 60 days and their monthly bill increase
+        f"""WITH cohort AS (
+              SELECT DISTINCT s.customer_id
+              FROM {CATALOG}.{SCHEMA}.subscription_promotion sp
+              JOIN {CATALOG}.{SCHEMA}.subscription s ON sp.subscription_id = s.subscription_id
+              WHERE sp.status = 'expired'
+                AND sp.end_date BETWEEN date_sub(current_date(), 60) AND date_sub(current_date(), 1)
+            ),
+            per_cust AS (
+              SELECT i.customer_id,
+                     MAX(CASE WHEN i.billing_period < '{period}' THEN i.discount_amount END)
+                       - MAX(CASE WHEN i.billing_period = '{period}' THEN i.discount_amount END) AS increase
+              FROM {CATALOG}.{SCHEMA}.invoice i
+              JOIN cohort c ON i.customer_id = c.customer_id
+              WHERE i.billing_period >= date_format(add_months(to_date('{period}-01'), -3), 'yyyy-MM')
+              GROUP BY i.customer_id
+            )
+            SELECT COUNT(*) AS customers,
+                   SUM(CASE WHEN increase > 0 THEN 1 ELSE 0 END) AS customers_with_higher_bill,
+                   ROUND(AVG(CASE WHEN increase > 0 THEN increase END), 2) AS avg_monthly_bill_increase,
+                   ROUND(SUM(CASE WHEN increase > 0 THEN increase END), 2) AS total_monthly_bill_increase
+            FROM per_cust""",
     ]
 
 
@@ -292,11 +331,11 @@ def exec_insights(lang: str = "es") -> dict[str, Any]:
     """Structured signals + AI-polished executive brief."""
     period = _last_period()
 
-    # All 10 metric-view queries in one parallel batch instead of two serial waves.
+    # All KPI + insight queries in one parallel batch instead of two serial waves.
     all_queries = _exec_kpi_queries(period) + _exec_insights_queries(period)
     results = execute_queries_parallel(all_queries)
-    kpi_results = results[:7]
-    dunning, arpu_trend, overage_by_plan = results[7:]
+    kpi_results = results[:8]
+    dunning, arpu_trend, overage_by_plan, revenue_by_charge, bill_shock = results[8:]
 
     tiles_list = _build_kpi_tiles(kpi_results, lang)
     tiles = {t["id"]: t for t in tiles_list}
@@ -315,6 +354,19 @@ def exec_insights(lang: str = "es") -> dict[str, Any]:
         "dunning_distribution": clean(dunning),
         "arpu_trend": clean(arpu_trend),
         "overage_by_plan": clean(overage_by_plan),
+        "revenue_by_charge_type": clean(revenue_by_charge),
+        "expired_discount_bill_shock": clean(bill_shock),
+        "definitions": {
+            "collection_rate": "share of THIS period's invoices already paid",
+            "revenue_at_risk": "cumulative unpaid balance (several periods) of customers 61+ days overdue",
+            "contracts_expiring": "contracts whose commitment ends in 60 days: the risk is non-renewal "
+                                  "(annual recurring revenue at stake), not the early-termination fee, "
+                                  "which no longer applies once the contract ends",
+            "one_time_charges": "device sales and activation fees; volatile, not recurring revenue",
+            "expired_discount_bill_shock": "customers whose discount expired in the last 60 days and how much "
+                                           "their monthly bill rose; they are the ones calling 'why did my bill "
+                                           "go up?' and the main retention opportunity",
+        },
     }
 
     # AI-polished narrative
@@ -428,8 +480,7 @@ def customer_kpis(lang: str = "es") -> dict[str, Any]:
           FROM {CATALOG}.{SCHEMA}.subscription_promotion sp
           JOIN {CATALOG}.{SCHEMA}.subscription s ON sp.subscription_id = s.subscription_id
           WHERE sp.status = 'expired'
-            AND sp.end_date BETWEEN date_sub(date_trunc('MONTH', current_date()), 30)
-                                AND date_sub(date_trunc('MONTH', current_date()), 1)
+            AND sp.end_date BETWEEN date_sub(current_date(), 60) AND date_sub(current_date(), 1)
         ),
         contract_exp AS (
           SELECT DISTINCT customer_id FROM {CATALOG}.{SCHEMA}.contract
@@ -528,8 +579,7 @@ def customer_list(
             SELECT 1 FROM {CATALOG}.{SCHEMA}.subscription_promotion sp
             JOIN {CATALOG}.{SCHEMA}.subscription s ON sp.subscription_id = s.subscription_id
             WHERE s.customer_id = c.customer_id AND sp.status = 'expired'
-              AND sp.end_date BETWEEN date_sub(date_trunc('MONTH', current_date()), 30)
-                                  AND date_sub(date_trunc('MONTH', current_date()), 1)
+              AND sp.end_date BETWEEN date_sub(current_date(), 60) AND date_sub(current_date(), 1)
           ) AS f_expired_discount,
           EXISTS (
             SELECT 1 FROM {CATALOG}.{SCHEMA}.contract ct

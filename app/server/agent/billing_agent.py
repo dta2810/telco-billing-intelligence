@@ -4,6 +4,7 @@ Short-term (conversation) + long-term (subscriber) memory on Lakebase, Genie spa
 UC functions as MCP tools, Claude as the LLM. Exposes one async entrypoint, answer().
 """
 import json
+import logging
 import os
 from datetime import date
 from typing import Annotated, Any, Optional, Sequence, TypedDict
@@ -18,6 +19,8 @@ from langgraph.graph.message import add_messages
 
 from server.agent.tools import get_customer_key
 from server.agent.memory_tools import memory_tools
+
+log = logging.getLogger(__name__)
 
 CATALOG = os.environ.get("CATALOG", "dt_serverless_stable_isqgt5_catalog")
 SCHEMA = os.environ.get("SCHEMA", "acmetel_gold")
@@ -92,13 +95,19 @@ async def answer(message: str, thread_id: str, customer_id: Optional[str] = None
         DatabricksMCPServer(name="ucfns", url=f"{_host()}/api/2.0/mcp/functions/{CATALOG}/{SCHEMA}", workspace_client=w),
     ])
     tools = [get_customer_key]
+    data_tools_ok = True
     try:
         tools.extend(_stringify(t) for t in await mcp.get_tools())
     except Exception:
-        pass
+        log.exception("MCP tool load failed (Genie / UC functions)")
+        data_tools_ok = False
     tools.extend(memory_tools())
 
     prompt = f"Today is {date.today().isoformat()}.\n" + SYSTEM_PROMPT
+    if not data_tools_ok:
+        prompt += ("\nWARNING: billing data tools (Genie, UC functions) are unavailable right now. Do not "
+                   "state balances, charges, or offers that are not in CURRENT ACCOUNT STATUS; tell the rep "
+                   "the billing data service is temporarily unavailable.")
     if customer_id:
         prompt += (f"\nThe subscriber is already identified as customer_id={customer_id}; skip "
                    f"get_customer_key, call list_user_memories, and pass this customer_id to the tools.")

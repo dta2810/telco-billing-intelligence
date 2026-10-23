@@ -255,38 +255,51 @@ for c in df_cust.itertuples():
 df_inv = pd.DataFrame(inv_rows)
 
 # COMMAND ----------
-# payment (1500) + dunning seeding (12% stage 1, 5% stage 3)
+# payment (1500) + dunning seeding (12% stage 1, 5% stage 3), stage aligned with days overdue
 N_PAYMENTS_TARGET = 1500
 mora_pool = df_cust["customer_id"].tolist()
 random.shuffle(mora_pool)
 n1, n3 = int(N_CUSTOMERS*0.12), int(N_CUSTOMERS*0.05)
 MORA_1_CUSTS = set(mora_pool[:n1])
 MORA_3_CUSTS = set(mora_pool[n1:n1+n3])
-pay_rows, pay_counter = [], 0
+
+# stage 3 cohort: unpaid since the latest due date 61+ days ago; stage 1 cohort: latest past due date unpaid
+def _stage(age):
+    return 1 if age <= 30 else 2 if age <= 60 else 3 if age <= 90 else 4
+
+OLDEST_UNPAID = {}
+for cust in MORA_3_CUSTS:
+    dues = [d for d in df_inv.loc[df_inv.customer_id == cust, "due_date"] if (TODAY - d).days >= 61]
+    if dues: OLDEST_UNPAID[cust] = max(dues)
+for cust in MORA_1_CUSTS:
+    dues = [d for d in df_inv.loc[df_inv.customer_id == cust, "due_date"] if (TODAY - d).days >= 1]
+    if dues: OLDEST_UNPAID[cust] = max(dues)
+
+def _unpaid_stage(cust, due):
+    oldest = OLDEST_UNPAID.get(cust)
+    if oldest and oldest <= due < TODAY:
+        return _stage((TODAY - oldest).days)
+    return None
+
+pay_rows = []
 for inv in df_inv.sort_values(["customer_id","billing_period"]).itertuples():
-    is_last = inv.billing_period == PERIODS[-1]
-    cust = inv.customer_id
-    if cust in MORA_3_CUSTS and is_last:
-        pay_counter += 1
-        pay_rows.append({"payment_id": payid(pay_counter), "invoice_id": inv.invoice_id, "customer_id": cust,
+    stage = _unpaid_stage(inv.customer_id, inv.due_date)
+    if stage:
+        pay_rows.append({"invoice_id": inv.invoice_id, "customer_id": inv.customer_id,
             "payment_date": None, "amount": 0.0, "method": random.choice(["card","app","bank_transfer"]),
-            "status": "pending", "dunning_stage": 3})
+            "status": "pending", "dunning_stage": stage})
         df_inv.loc[df_inv.invoice_id==inv.invoice_id, "status"] = "overdue"
         continue
-    if cust in MORA_1_CUSTS and is_last:
-        pay_counter += 1
-        pay_rows.append({"payment_id": payid(pay_counter), "invoice_id": inv.invoice_id, "customer_id": cust,
-            "payment_date": None, "amount": 0.0, "method": random.choice(["card","app","bank_transfer"]),
-            "status": "pending", "dunning_stage": 1})
-        df_inv.loc[df_inv.invoice_id==inv.invoice_id, "status"] = "overdue"
-        continue
-    pay_counter += 1
-    pay_rows.append({"payment_id": payid(pay_counter), "invoice_id": inv.invoice_id, "customer_id": cust,
+    pay_rows.append({"invoice_id": inv.invoice_id, "customer_id": inv.customer_id,
         "payment_date": inv.due_date - timedelta(days=random.randint(0,5)), "amount": inv.total_due,
         "method": random.choices(["card","app","bank_transfer","cash"], weights=[55,25,15,5])[0],
         "status": "success", "dunning_stage": 0})
-    if pay_counter >= N_PAYMENTS_TARGET: break
-df_pay = pd.DataFrame(pay_rows[:N_PAYMENTS_TARGET])
+
+# keep every dunning row, sample paid rows up to the target
+mora_rows = [r for r in pay_rows if r["dunning_stage"] > 0]
+paid_rows = random.sample([r for r in pay_rows if r["dunning_stage"] == 0], N_PAYMENTS_TARGET - len(mora_rows))
+df_pay = pd.DataFrame(sorted(mora_rows + paid_rows, key=lambda r: (r["customer_id"], r["invoice_id"])))
+df_pay.insert(0, "payment_id", [payid(i + 1) for i in range(len(df_pay))])
 
 # COMMAND ----------
 # usage_summary (1600) — 18% of subs with relevant overage

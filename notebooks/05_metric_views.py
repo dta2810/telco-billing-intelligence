@@ -292,3 +292,14 @@ mvs = [r.table_name for r in spark.sql(f"""
 print(f"metric views: {len(mvs)}")
 for m in mvs:
     print(" ", m)
+
+# COMMAND ----------
+# CREATE OR REPLACE drops grants: re-grant the app service principal if the app exists
+from databricks.sdk import WorkspaceClient
+try:
+    sp_id = WorkspaceClient().apps.get(APP_NAME).service_principal_client_id
+except Exception:
+    sp_id = None
+for m in mvs if sp_id else []:
+    spark.sql(f"GRANT SELECT ON VIEW {G}.{m} TO `{sp_id}`")
+print(f"app grants: {len(mvs) if sp_id else 0} views -> {sp_id or 'no app yet'}")

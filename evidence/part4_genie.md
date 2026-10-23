@@ -1,5 +1,7 @@
 # Evidence — Genie Room (NL query over gold)
 
+> Original build run (2026-08-31). Current numbers for the demo: [`run_2026-10-23.md`](run_2026-10-23.md) (data is synthetic and date-relative, so figures move each regeneration).
+
 Genie Space created programmatically from a notebook (`12_genie`) over the AcmeTel gold model:
 10 tables + 6 example question→SQL pairs + 9 join specs + thin instructions (UC comments
 auto-read). Idempotent by title (create, else update).

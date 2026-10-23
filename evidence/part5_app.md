@@ -1,5 +1,7 @@
 # Evidence — Databricks App (Customer-360 + embedded agent)
 
+> Original build run (2026-08-31). Current numbers for the demo: [`run_2026-10-23.md`](run_2026-10-23.md) (data is synthetic and date-relative, so figures move each regeneration).
+
 One Databricks App: FastAPI + React (Executive KPIs + Customer-360) with the memory agent
 EMBEDDED in-process (no HTTP hop). Frontend built with vite, source synced to workspace,
 deployed via notebook (`14_app`, SDK `w.apps`).

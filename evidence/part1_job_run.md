@@ -1,5 +1,7 @@
 # Evidence — Part 1: end-to-end Lakeflow Job run
 
+> Original build run (2026-08-31). Current numbers for the demo: [`run_2026-10-23.md`](run_2026-10-23.md) (data is synthetic and date-relative, so figures move each regeneration).
+
 The medallion runs as a single serverless Lakeflow Job (DABs bundle `acmetel-medallion`),
 not ad-hoc notebook submissions. Job chains 7 tasks with `depends_on`.
 

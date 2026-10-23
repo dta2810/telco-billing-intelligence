@@ -17,13 +17,16 @@ and languages** — on one Databricks platform, end to end.
   expired discount, contract status, best next offer. No re-identification, no digging.
 - **Proactive retention** — it recalls preferences, disputes, price sensitivity and promises, so
   the next contact continues the relationship instead of restarting it.
-- **Governed, not a black box** — every remembered fact is a Postgres row under Unity Catalog:
-  queryable, auditable, access-controlled. Business KPIs (ARPU, collection rate, revenue at risk)
-  come from the same governed model.
+- **Governed, not a black box** — every remembered fact is a row in Lakebase Postgres, inside the
+  Databricks platform. Postgres roles control the assistant's reads and writes; registering the
+  database in Unity Catalog adds read-only, audited query access. Business KPIs (ARPU, collection
+  rate, revenue at risk) come from the governed gold model and its metric views.
 
-Seeded into the data so the value is demonstrable: **234** subscribers whose discount expired
-last month (their bill jumped), **40** delinquent accounts (revenue at risk), **174** lines with
-data overage (mis-sized plans), and contracts inside the 60-day retention window.
+Seeded into the data so the value is demonstrable: **234** expired discounts (bills that jumped),
+**51** delinquent customers, 15 of them 61+ days overdue (**$2,326.71** at risk), **174** usage rows
+with data overage (mis-sized plans), and contracts inside the 60-day retention window. Figures are
+from the latest run ([`evidence/run_2026-10-23.md`](evidence/run_2026-10-23.md)); the data is
+synthetic and date-relative, so they move each time the Job regenerates it.
 
 ## See it work
 
@@ -40,7 +43,7 @@ row counts, query results, generated SQL, and real agent answers (not screenshot
 | **Genie Room** | Natural-language questions over the gold model → SQL → answer | [`evidence/part4_genie.md`](evidence/part4_genie.md) |
 | **Databricks App** | Executive KPI dashboard + Customer-360 with the memory assistant, one deployed app | [`evidence/part5_app.md`](evidence/part5_app.md) |
 
-**The payoff, verified end to end** (from [`evidence/part5_app.md`](evidence/part5_app.md)): a rep
+**The payoff, verified end to end** (from [`evidence/run_2026-10-23.md`](evidence/run_2026-10-23.md)): a rep
 asks "how much does this customer owe and why?" and the assistant answers with the balance, dunning
 stage, and the expired discount that caused the increase — then, told the customer prefers WhatsApp
 and is price-sensitive, it **recalls those facts in a brand-new session**. Short-term and long-term
@@ -68,7 +71,8 @@ memory, working, on governed infrastructure.
 ```
 
 The agent reaches Genie and the UC functions as **MCP tools**, reads/writes memory on **Lakebase**,
-and runs **in-process inside the app** — one deployment, no service-to-service hop.
+and runs **in-process inside the app** — one deployment and one app identity, calling governed
+Databricks services (Genie, UC functions, Lakebase, model serving); no separate agent endpoint.
 
 ## Repository layout
 

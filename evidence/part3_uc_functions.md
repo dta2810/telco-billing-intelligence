@@ -1,5 +1,7 @@
 # Evidence — Part 3 (foundation): UC functions
 
+> Original build run (2026-08-31). Current numbers for the demo: [`run_2026-10-23.md`](run_2026-10-23.md) (data is synthetic and date-relative, so figures move each regeneration).
+
 Four Unity Catalog SQL functions on `acmetel_gold` — the agent's deterministic tools (also
 callable by Genie). Ported to English, parametrized to the real catalog/schema.
 

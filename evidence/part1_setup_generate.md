@@ -1,5 +1,7 @@
 # Evidence — Part 1: setup + raw generation
 
+> Original build run (2026-08-31). Current numbers for the demo: [`run_2026-10-23.md`](run_2026-10-23.md) (data is synthetic and date-relative, so figures move each regeneration).
+
 Workspace: FEVM `fevm-dt-serverless-stable-isqgt5` · serverless · catalog `dt_serverless_stable_isqgt5_catalog`.
 Run via one-time serverless Job runs on the imported notebooks.
 

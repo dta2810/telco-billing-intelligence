@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %pip install --quiet "databricks-sdk>=0.81.0" "psycopg[binary]>=3.0"
+# MAGIC %pip install --quiet "databricks-sdk>=0.81.0" "psycopg>=3.0"
 # MAGIC %restart_python
 
 # COMMAND ----------

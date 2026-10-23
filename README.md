@@ -8,8 +8,8 @@ Without memory, personalization is impossible and retention is reactive — you 
 promise you made last week if the system never remembered making it.
 
 **What we built:** a governed billing platform for a fictitious LATAM telco ("AcmeTel") plus an
-AI assistant that answers from real data **and remembers each subscriber across calls, channels,
-and languages** — on one Databricks platform, end to end.
+AI assistant that answers from real data **and remembers each subscriber across sessions** — on one
+Databricks platform, end to end.
 
 ## The value it creates
 
@@ -22,7 +22,8 @@ and languages** — on one Databricks platform, end to end.
   database in Unity Catalog adds read-only, audited query access. Business KPIs (ARPU, collection
   rate, revenue at risk) come from the governed gold model and its metric views.
 
-Seeded into the data so the value is demonstrable: **234** expired discounts (bills that jumped),
+Seeded into the data so the value is demonstrable: **234** expired discount records (59 customers in
+the last 60 days, 46 of them with a higher bill),
 **51** delinquent customers, 15 of them 61+ days overdue (**$2,326.71** at risk), **174** usage rows
 with data overage (mis-sized plans), and contracts inside the 60-day retention window. Figures are
 from the latest run ([`evidence/run_2026-10-23.md`](evidence/run_2026-10-23.md)); the data is
@@ -70,7 +71,7 @@ memory, working, on governed infrastructure.
                                Databricks App (Executive + Customer-360)
 ```
 
-The agent reaches Genie and the UC functions as **MCP tools**, reads/writes memory on **Lakebase**,
+The agent reaches Genie and the UC functions as **MCP tools** (Databricks managed MCP servers, Public Preview), reads/writes memory on **Lakebase**,
 and runs **in-process inside the app** — one deployment and one app identity, calling governed
 Databricks services (Genie, UC functions, Lakebase, model serving); no separate agent endpoint.
 

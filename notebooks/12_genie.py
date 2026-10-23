@@ -14,13 +14,13 @@ G = f"{CATALOG}.{GOLD}"
 def hid():
     return uuid.uuid4().hex
 
-# discover a SQL warehouse
-WAREHOUSE_ID = sorted(w.warehouses.list(),
-                      key=lambda x: (x.state.value != "RUNNING", not x.enable_serverless_compute))[0].id
+# discover a serverless PRO SQL warehouse (Genie rejects classic and realtime)
+WAREHOUSE_ID = sorted((x for x in w.warehouses.list() if x.warehouse_type and x.warehouse_type.value == "PRO"),
+                      key=lambda x: (not x.enable_serverless_compute, x.state.value != "RUNNING"))[0].id
 
 # COMMAND ----------
-# tables (sorted by identifier — API requirement)
-tables = [{"identifier": f"{G}.{e}"} for e in ENTITIES]
+# tables + metric views (sorted by identifier — API requirement)
+tables = [{"identifier": f"{G}.{e}"} for e in ENTITIES + METRIC_VIEWS]
 tables = sorted(tables, key=lambda x: x["identifier"])
 
 # sample questions (UI bubbles)
@@ -46,7 +46,9 @@ instr = (
     "- For 'why did my bill go up', break down invoice_line by charge_type for the last two billing periods and name the cause "
     "(expired discount, new overage, device installment, one-time charge).\n"
     "- Use the mv_* metric views for aggregated KPIs; use raw tables for customer-specific detail.\n"
-    "- Be concise, don't restate the question, and answer in the user's language."
+    "- Collection rate = share of invoices paid (mv_collection_rate), not a dollar ratio. Days overdue = days since the "
+    "oldest unpaid due date, as returned by get_payment_status.\n"
+    "- Be concise, don't restate the question, and answer in the language of the question (default English)."
 )
 text_instructions = [{"id": hid(), "content": [instr]}]
 
@@ -71,6 +73,10 @@ examples = [
     ex("What is the monthly ARPU trend?",
        f"SELECT billing_period, MEASURE(arpu) AS arpu, MEASURE(total_revenue) AS revenue "
        f"FROM {G}.mv_arpu_monthly GROUP BY billing_period ORDER BY billing_period"),
+    ex("What is the collection rate this month by segment?",
+       f"SELECT segment, MEASURE(collection_rate) AS collection_rate, MEASURE(paid_invoices) AS paid, "
+       f"MEASURE(total_invoices) AS total FROM {G}.mv_collection_rate "
+       f"WHERE billing_period = (SELECT MAX(billing_period) FROM {G}.invoice) GROUP BY segment ORDER BY collection_rate"),
     ex("How much revenue is at risk from customers 60+ days delinquent?",
        f"SELECT MEASURE(revenue_at_risk) AS revenue_at_risk, MEASURE(customers_at_risk) AS customers "
        f"FROM {G}.mv_revenue_at_risk"),

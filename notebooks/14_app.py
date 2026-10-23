@@ -31,12 +31,10 @@ print("app SP client_id:", sp_id)
 # (table/function-scoped, not schema-wide) ; Genie CAN_RUN ; Lakebase role handled separately
 G = f"{CATALOG}.{GOLD}"
 UC_FNS = ["check_discount_status", "get_payment_status", "get_next_best_offer", "simulate_plan_change"]
-MVIEWS = ["mv_arpu_monthly", "mv_collection_rate", "mv_dunning_distribution", "mv_discount_expiring_30d",
-          "mv_overage_frequency", "mv_contract_expiring_60d", "mv_plan_utilization", "mv_revenue_at_risk"]
 grants = [f"GRANT USE CATALOG ON CATALOG {CATALOG} TO `{sp_id}`",
           f"GRANT USE SCHEMA ON SCHEMA {G} TO `{sp_id}`"]
 grants += [f"GRANT SELECT ON TABLE {G}.{t} TO `{sp_id}`" for t in ENTITIES]
-grants += [f"GRANT SELECT ON VIEW {G}.{v} TO `{sp_id}`" for v in MVIEWS]
+grants += [f"GRANT SELECT ON VIEW {G}.{v} TO `{sp_id}`" for v in METRIC_VIEWS]
 grants += [f"GRANT EXECUTE ON FUNCTION {G}.{f} TO `{sp_id}`" for f in UC_FNS]
 for stmt in grants:
     spark.sql(stmt)
